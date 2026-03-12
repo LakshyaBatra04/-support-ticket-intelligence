@@ -1,182 +1,269 @@
-# Support Ticket Issue Intelligence System
+Support Ticket Intelligence System
 
-A full-stack system that analyzes customer support tickets, automatically clusters
-related issues, detects emerging trends, and surfaces actionable insights via a
-real-time dashboard powered by Claude AI.
+ML-powered system that analyzes customer support tickets to automatically detect issue clusters, identify emerging trends, and surface anomalies — without using paid APIs.
 
----
+Built using Python + scikit-learn + React + Vite.
 
-## Architecture Overview
 
-```
-CSV Dataset (8,469 tickets)
-        │
-        ▼
-┌─────────────────────┐
-│  backend/analyze.py │  ← Python ingestion & analysis
-│                     │
-│  1. Load & parse    │
-│  2. Cluster by      │
-│     subject/text    │
-│  3. Trend detection │
-│  4. Output JSON     │
-└────────┬────────────┘
-         │  analysis.json
-         ▼
-┌──────────────────────────┐
-│  React Dashboard         │  ← frontend/support_intelligence.jsx
-│                          │
-│  • Cluster list sidebar  │
-│  • Trend indicators      │
-│  • Priority breakdowns   │
-│  • Example tickets       │
-│  • AI analysis (Claude)  │
-│  • Ticket simulation     │
-└──────────────────────────┘
-```
 
----
 
-## How Tickets Are Processed
+System Architecture
+┌─────────────────────────────────────────────────────────────┐
+│                        Frontend                              │
+│   React Dashboard                                            │
+│   ├── Issue Cluster Cards                                    │
+│   ├── Trend Analysis Table                                   │
+│   ├── Anomaly Detection View                                 │
+│   ├── Cluster Detail Panel                                   │
+│   └── Ticket Ingestion UI                                    │
+├─────────────────────────────────────────────────────────────┤
+│                        REST API                              │
+│                        server.py                             │
+│   GET  /api/analysis        → Full ML analysis               │
+│   GET  /api/cluster/:id     → Cluster details                │
+│   POST /api/ingest          → Add ticket                     │
+│   POST /api/simulate        → Generate synthetic tickets     │
+│   POST /api/refresh         → Re-run ML pipeline             │
+├─────────────────────────────────────────────────────────────┤
+│                       ML Engine                              │
+│                       ml_engine.py                           │
+│                                                             │
+│   Text Cleaning → TF-IDF → SVD → KMeans → Trends → Anomaly   │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│                         Data                                 │
+│                         CSV Dataset                          │
+└─────────────────────────────────────────────────────────────┘
+Features
+Automatic Issue Detection
 
-1. **Ingestion**: The CSV is read and parsed. Only tickets with a `First Response Time`
-   timestamp are used (5,650 of 8,469 records). This field anchors the ticket to a
-   real processing moment.
+Clusters support tickets into issue groups using machine learning.
 
-2. **Field selection**: We use `Ticket Subject`, `Ticket Description`, `Ticket Priority`,
-   `Ticket Type`, `Product Purchased`, and `First Response Time`. The subject is the
-   most consistent signal for grouping; the description provides human-readable examples.
+Trend Detection
 
-3. **Cleaning**: Ticket descriptions contain template artifacts (`{product_purchased}`,
-   HTML fragments, etc.) — these are handled gracefully at display time by trimming to
-   the first meaningful line and capping at 150 characters.
+Identifies whether issues are:
 
----
+increasing
 
-## How Issues Are Detected
+decreasing
 
-**Approach: Taxonomy-based clustering**
+stable
 
-The dataset's `Ticket Subject` field provides 16 pre-labeled issue categories
-(e.g. "Network problem", "Data loss", "Payment issue"). Rather than applying
-unsupervised clustering (k-means, DBSCAN) to raw text — which would reproduce
-these same categories noisily — we use the labels directly as cluster identifiers.
+using sliding window analysis.
 
-This is a deliberate design choice: the dataset already encodes the taxonomy;
-re-deriving it adds complexity without accuracy. In production with unlabeled data,
-the approach would shift to TF-IDF + cosine similarity clustering or embedding-based
-grouping (e.g. sentence-transformers + HDBSCAN).
+Anomaly Detection
 
-Each cluster surfaces:
-- Total ticket count
-- Priority distribution (Critical / High / Medium / Low)
-- Ticket type distribution (Technical issue / Billing inquiry / etc.)
-- Representative example tickets
+Detects unusual spikes in support tickets using statistical thresholds.
 
----
+Interactive Dashboard
 
-## How Trends Are Identified
+React dashboard provides:
 
-**Method: Chronological half-split comparison**
+issue cluster cards
 
-All timestamped tickets are sorted by `First Response Time` and split into two
-equal halves (earlier 50% vs later 50%). For each cluster:
+trend charts
 
-```
-prev_count = tickets in cluster that fall in first half
-curr_count = tickets in cluster that fall in second half
-delta      = (curr - prev) / prev
+anomaly detection view
 
-trend = "increasing" if delta > +10%
-      = "decreasing" if delta < -10%
-      = "stable" otherwise
-```
+cluster deep-dive panel
 
-**Why this approach over calendar months?**
-The dataset spans only two calendar months (May–June 2023), making month-over-month
-comparisons trivially show all clusters as "increasing" (since June has ~20x more
-data than May in this dataset). The half-split is dataset-adaptive and produces
-meaningful, comparable signal regardless of time distribution.
+Ticket Simulation
 
-**Results from this dataset:**
-| Cluster | Trend | Change |
-|---|---|---|
-| Data Loss | ↑ Increasing | +24% |
-| Payment Issue | ↑ Increasing | +16% |
-| Delivery Problem | ↑ Increasing | +15% |
-| Installation Support | ↓ Decreasing | -11% |
-| All others | → Stable | <10% delta |
+Generate synthetic tickets to test the pipeline.
 
----
+Real-Time Analysis Refresh
 
-## Dashboard Features
+Re-run the ML pipeline after new tickets are added.
 
-- **Cluster sidebar**: All 16 issue clusters ranked by volume with mini priority bars
-- **Filter tabs**: View all / rising / falling / stable clusters
-- **Trend badges**: Color-coded indicators with percentage change
-- **Detail panel**: Clicking a cluster shows priority breakdown, ticket type distribution,
-  and 3 real example tickets with priority tags
-- **AI Analysis**: "Generate AI Analysis" calls Claude API to produce root cause
-  hypotheses, customer impact assessment, and recommended actions for any cluster
-- **Ticket Injection**: Simulate new incoming tickets to see how clusters update in
-  real time (demonstrates the "update results when new tickets arrive" requirement)
-- **Emerging Issues Banner**: Persistent alert bar when any cluster is trending up
+How It Works
+1. Text Preprocessing
 
----
+Ticket fields are cleaned and combined:
 
-## Design Decisions & Tradeoffs
+Subject + Ticket Type + Product + Description
 
-| Decision | Rationale | Tradeoff |
-|---|---|---|
-| Taxonomy-based clustering | Labels already exist; highly accurate | Would need NLP for unlabeled data |
-| Half-split trend detection | Dataset-adaptive; works with any time distribution | Less interpretable than calendar periods |
-| Frontend-only architecture | No server needed; easy to run | Analysis runs at build time, not streaming |
-| Claude AI analysis on-demand | Avoids pre-computing expensive AI calls | Small latency per click (~1-2s) |
-| In-memory ticket simulation | Demonstrates update requirement simply | Resets on page reload (no persistence) |
+Processing steps:
 
----
+remove emails, URLs, phone numbers
 
-## What I Would Improve With More Time
+normalize whitespace
 
-1. **Embedding-based clustering** — Use `sentence-transformers` to embed ticket
-   descriptions, then HDBSCAN to find clusters that cross category boundaries
-   (e.g. "network + setup" issues often co-occur).
+lowercase text
 
-2. **Sliding window trend detection** — Replace the half-split with a proper
-   time-series approach: compute a 7-day rolling count per cluster and flag when
-   it exceeds 2 standard deviations above the rolling mean.
+replace template variables
 
-3. **Persistent ticket injection** — Back the simulation with SQLite so injected
-   tickets survive page reloads and accumulate over a session.
+Subject is double weighted for stronger signal.
 
-4. **Webhook / streaming ingestion** — Expose a POST `/ticket` endpoint that
-   re-runs analysis incrementally rather than batch-processing the whole dataset.
+Feature Extraction
 
-5. **Cross-cluster correlation** — Detect when multiple clusters spike simultaneously
-   (e.g. "Network problem" + "Account access" both rising may indicate an outage).
+Tickets are converted into vectors using TF-IDF.
 
-6. **Auto-generated cluster names** — When working with unlabeled data, use Claude
-   to generate a descriptive name for each NLP-derived cluster automatically.
+max_features = 5000
+ngram_range = (1,2)
+min_df = 3
+max_df = 0.85
+sublinear_tf = True
 
----
+This captures phrases like:
 
-## Running Locally
+"wifi disconnect"
+"battery issue"
+"network timeout"
+Clustering Pipeline
+TF-IDF → SVD → Normalization → KMeans
 
-```bash
-# Backend — produce analysis JSON
+Steps:
+
+1️⃣ TF-IDF vectorization
+2️⃣ Dimensionality reduction using TruncatedSVD (LSA)
+3️⃣ L2 normalization
+4️⃣ Optimal k selection using silhouette score
+5️⃣ MiniBatch KMeans clustering
+
+Each ticket is assigned to an issue cluster.
+
+Cluster Labeling
+
+Clusters are labeled using:
+
+most common subject
+
+top TF-IDF terms
+
+ticket type
+
+most common affected products
+
+Example:
+
+Cluster: WiFi disconnecting
+Top Terms: wifi, signal, drop
+Products: Router Pro, Router X
+Trend Detection
+
+Trend classification uses sliding windows:
+
+Previous Window (3 months)
+Current Window (3 months)
+pct_change = ((curr - prev) / prev) * 100
+
+Classification:
+
+Change	Trend
+
++15% | Increasing |
+< −15% | Decreasing |
+otherwise | Stable |
+
+Anomaly Detection
+
+Monthly cluster volumes are analyzed.
+
+threshold = mean + 2 × std
+
+Months exceeding the threshold are flagged as anomalies.
+
+These represent possible:
+
+outages
+
+incidents
+
+regressions
+
+Severity Scoring
+
+Clusters are ranked by severity:
+
+severity = ticket_count × (1 + pct_change/100)
+
+This prioritizes issues that are both large and growing quickly.
+
+Tech Stack
+Layer	Technology
+ML	scikit-learn
+Backend	Python
+Frontend	React + Vite
+Charts	Recharts
+Data	Pandas
+Running the Project
+Backend
+
+Install dependencies:
+
+pip install pandas numpy scikit-learn
+
+Start server:
+
 cd backend
-python3 analyze.py --input tickets.csv --output analysis.json
+python server.py
 
-# Frontend — open the React dashboard
-# Load support_intelligence.jsx in Claude.ai or any React sandbox
-```
+Backend runs at:
 
-**Requirements**: Python 3.8+, standard library only (no pip installs needed).
+http://localhost:8080
+Frontend
 
----
+Install dependencies:
 
-## Dataset
+cd frontend
+npm install
 
-Customer Support Ticket Dataset (Kaggle)  
-https://www.kaggle.com/datasets/suraj520/customer-support-ticket-dataset  
-8,469 tickets · 5,650 with timestamps used
+Run dev server:
+
+npm run dev
+
+Frontend runs at:
+
+http://localhost:5173
+API Endpoints
+GET  /api/analysis
+GET  /api/cluster/:id
+GET  /api/health
+
+POST /api/ingest
+POST /api/simulate
+POST /api/refresh
+Project Structure
+support-ticket-intelligence/
+│
+├── backend/
+│   ├── ml_engine.py
+│   └── server.py
+│
+├── frontend/
+│   ├── src/
+│   │   └── support_intelligence.jsx
+│   ├── package.json
+│   └── vite.config.js
+│
+├── data/
+│   └── customer_support_tickets.csv
+│
+├── .gitignore
+└── README.md
+Design Decisions
+Decision	Reason
+TF-IDF over embeddings	no paid APIs required
+KMeans clustering	stable and interpretable
+SVD dimensionality reduction	faster clustering
+Sliding window trends	simple + interpretable
+CSV dataset	lightweight storage
+Future Improvements
+
+Possible upgrades:
+
+Sentence-BERT embeddings for better semantic clustering
+
+WebSocket streaming updates
+
+PostgreSQL + pgvector storage
+
+automated Slack/email alerting
+
+root-cause correlation with releases
+
+customer impact scoring
+
+License
+
+MIT License
