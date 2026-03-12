@@ -1,13 +1,50 @@
-Support Ticket Intelligence System
+Your README is already good, but for **GitHub it should be structured more like a professional open-source project page** so that recruiters and developers immediately understand:
 
-ML-powered system that analyzes customer support tickets to automatically detect issue clusters, identify emerging trends, and surface anomalies — without using paid APIs.
+* what the project does
+* how to run it
+* what the architecture looks like
+* what makes it interesting technically
 
-Built using Python + scikit-learn + React + Vite.
+Below is a **cleaned, GitHub-ready README** with better formatting, sections, badges, and developer-friendly structure.
 
+---
 
+# Support Ticket Intelligence System
 
+ML-powered system that **automatically analyzes customer support tickets** to detect issue clusters, identify emerging trends, and surface anomalies — **without relying on paid APIs**.
 
-System Architecture
+Built using **Python + scikit-learn + React + Vite**.
+
+![Python](https://img.shields.io/badge/Python-3.9+-blue)
+![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-orange)
+![React](https://img.shields.io/badge/React-Dashboard-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+
+---
+
+# Overview
+
+Customer support teams often receive thousands of tickets, making it difficult to:
+
+* identify recurring issues
+* detect spikes in incidents
+* understand product health
+* prioritize fixes
+
+This system applies **machine learning and statistical analysis** to automatically discover patterns in support tickets.
+
+The platform provides a **dashboard + ML pipeline** that surfaces:
+
+* issue clusters
+* emerging trends
+* anomaly spikes
+* severity rankings
+
+---
+
+# System Architecture
+
+```
 ┌─────────────────────────────────────────────────────────────┐
 │                        Frontend                              │
 │   React Dashboard                                            │
@@ -19,6 +56,7 @@ System Architecture
 ├─────────────────────────────────────────────────────────────┤
 │                        REST API                              │
 │                        server.py                             │
+│                                                             │
 │   GET  /api/analysis        → Full ML analysis               │
 │   GET  /api/cluster/:id     → Cluster details                │
 │   POST /api/ingest          → Add ticket                     │
@@ -34,188 +72,277 @@ System Architecture
 │                         Data                                 │
 │                         CSV Dataset                          │
 └─────────────────────────────────────────────────────────────┘
-Features
-Automatic Issue Detection
+```
 
-Clusters support tickets into issue groups using machine learning.
+---
 
-Trend Detection
+# Features
 
-Identifies whether issues are:
+## Automatic Issue Detection
 
-increasing
+Clusters support tickets into **issue groups** using machine learning.
 
-decreasing
+Example clusters:
 
-stable
+* WiFi disconnecting
+* Battery draining
+* Login failures
+* Network timeouts
 
-using sliding window analysis.
+---
 
-Anomaly Detection
+## Trend Detection
 
-Detects unusual spikes in support tickets using statistical thresholds.
+Detects whether an issue is:
 
-Interactive Dashboard
+| Change         | Trend      |
+| -------------- | ---------- |
+| +15% or higher | Increasing |
+| −15% or lower  | Decreasing |
+| otherwise      | Stable     |
+
+Uses **sliding time windows** to detect changes.
+
+---
+
+## Anomaly Detection
+
+Flags **unusual spikes** in ticket volume using statistical thresholds.
+
+```
+threshold = mean + 2 × std
+```
+
+Useful for detecting:
+
+* production incidents
+* outages
+* regressions after releases
+
+---
+
+## Interactive Dashboard
 
 React dashboard provides:
 
-issue cluster cards
+* Issue cluster cards
+* Trend analysis table
+* Anomaly detection panel
+* Cluster deep-dive view
+* Ticket ingestion UI
 
-trend charts
+---
 
-anomaly detection view
+## Ticket Simulation
 
-cluster deep-dive panel
+Generate **synthetic tickets** to test the ML pipeline.
 
-Ticket Simulation
+Useful for demos and stress testing.
 
-Generate synthetic tickets to test the pipeline.
+---
 
-Real-Time Analysis Refresh
+## Real-Time Pipeline Refresh
 
-Re-run the ML pipeline after new tickets are added.
+After new tickets are ingested the ML pipeline can be **re-run instantly**.
 
-How It Works
-1. Text Preprocessing
+---
 
-Ticket fields are cleaned and combined:
+# How the ML Pipeline Works
 
+## 1. Text Preprocessing
+
+Ticket fields are combined:
+
+```
 Subject + Ticket Type + Product + Description
+```
 
-Processing steps:
+Cleaning steps:
 
-remove emails, URLs, phone numbers
+* remove emails
+* remove URLs
+* remove phone numbers
+* normalize whitespace
+* lowercase text
+* replace template variables
 
-normalize whitespace
+Subject is **double weighted** to improve clustering signal.
 
-lowercase text
+---
 
-replace template variables
+# Feature Extraction
 
-Subject is double weighted for stronger signal.
+Tickets are converted into vectors using **TF-IDF**.
 
-Feature Extraction
+Parameters:
 
-Tickets are converted into vectors using TF-IDF.
-
+```
 max_features = 5000
 ngram_range = (1,2)
 min_df = 3
 max_df = 0.85
 sublinear_tf = True
+```
 
 This captures phrases like:
 
-"wifi disconnect"
-"battery issue"
-"network timeout"
-Clustering Pipeline
+* wifi disconnect
+* battery issue
+* network timeout
+* login error
+
+---
+
+# Clustering Pipeline
+
+```
 TF-IDF → SVD → Normalization → KMeans
+```
 
 Steps:
 
-1️⃣ TF-IDF vectorization
-2️⃣ Dimensionality reduction using TruncatedSVD (LSA)
-3️⃣ L2 normalization
-4️⃣ Optimal k selection using silhouette score
-5️⃣ MiniBatch KMeans clustering
+1. TF-IDF vectorization
+2. Dimensionality reduction using **TruncatedSVD (LSA)**
+3. L2 normalization
+4. Optimal cluster count using **silhouette score**
+5. **MiniBatch KMeans** clustering
 
-Each ticket is assigned to an issue cluster.
+Each ticket is assigned to an **issue cluster**.
 
-Cluster Labeling
+---
+
+# Cluster Labeling
 
 Clusters are labeled using:
 
-most common subject
-
-top TF-IDF terms
-
-ticket type
-
-most common affected products
+* most common subject
+* top TF-IDF terms
+* ticket type
+* most affected products
 
 Example:
 
-Cluster: WiFi disconnecting
-Top Terms: wifi, signal, drop
-Products: Router Pro, Router X
-Trend Detection
+```
+Cluster: WiFi Disconnecting
+
+Top Terms:
+wifi, signal, drop
+
+Products:
+Router Pro
+Router X
+```
+
+---
+
+# Trend Detection
 
 Trend classification uses sliding windows:
 
-Previous Window (3 months)
-Current Window (3 months)
-pct_change = ((curr - prev) / prev) * 100
+```
+Previous Window: 3 months
+Current Window: 3 months
 
-Classification:
+pct_change = ((curr - prev) / prev) × 100
+```
 
-Change	Trend
+This highlights **emerging issues early**.
 
-+15% | Increasing |
-< −15% | Decreasing |
-otherwise | Stable |
+---
 
-Anomaly Detection
+# Anomaly Detection
 
 Monthly cluster volumes are analyzed.
 
+```
 threshold = mean + 2 × std
+```
 
-Months exceeding the threshold are flagged as anomalies.
+Months exceeding this threshold are flagged as anomalies.
 
-These represent possible:
+Possible causes:
 
-outages
+* infrastructure outage
+* software regression
+* product defect
 
-incidents
+---
 
-regressions
-
-Severity Scoring
+# Severity Scoring
 
 Clusters are ranked by severity:
 
-severity = ticket_count × (1 + pct_change/100)
+```
+severity = ticket_count × (1 + pct_change / 100)
+```
 
-This prioritizes issues that are both large and growing quickly.
+This prioritizes issues that are **both large and growing quickly**.
 
-Tech Stack
-Layer	Technology
-ML	scikit-learn
-Backend	Python
-Frontend	React + Vite
-Charts	Recharts
-Data	Pandas
-Running the Project
-Backend
+---
+
+# Tech Stack
+
+| Layer    | Technology   |
+| -------- | ------------ |
+| ML       | scikit-learn |
+| Backend  | Python       |
+| Frontend | React + Vite |
+| Charts   | Recharts     |
+| Data     | Pandas       |
+
+---
+
+# Running the Project
+
+## Backend
 
 Install dependencies:
 
+```
 pip install pandas numpy scikit-learn
+```
 
-Start server:
+Run the backend:
 
+```
 cd backend
 python server.py
+```
 
 Backend runs at:
 
+```
 http://localhost:8080
-Frontend
+```
+
+---
+
+## Frontend
 
 Install dependencies:
 
+```
 cd frontend
 npm install
+```
 
-Run dev server:
+Run development server:
 
+```
 npm run dev
+```
 
 Frontend runs at:
 
+```
 http://localhost:5173
-API Endpoints
+```
+
+---
+
+# API Endpoints
+
+```
 GET  /api/analysis
 GET  /api/cluster/:id
 GET  /api/health
@@ -223,9 +350,15 @@ GET  /api/health
 POST /api/ingest
 POST /api/simulate
 POST /api/refresh
-Project Structure
+```
+
+---
+
+# Project Structure
+
+```
 support-ticket-intelligence/
-│
+
 ├── backend/
 │   ├── ml_engine.py
 │   └── server.py
@@ -241,29 +374,32 @@ support-ticket-intelligence/
 │
 ├── .gitignore
 └── README.md
-Design Decisions
-Decision	Reason
-TF-IDF over embeddings	no paid APIs required
-KMeans clustering	stable and interpretable
-SVD dimensionality reduction	faster clustering
-Sliding window trends	simple + interpretable
-CSV dataset	lightweight storage
-Future Improvements
+```
 
-Possible upgrades:
+---
 
-Sentence-BERT embeddings for better semantic clustering
+# Design Decisions
 
-WebSocket streaming updates
+| Decision                     | Reason                   |
+| ---------------------------- | ------------------------ |
+| TF-IDF instead of embeddings | avoids paid APIs         |
+| KMeans clustering            | stable and interpretable |
+| SVD dimensionality reduction | faster clustering        |
+| Sliding window trends        | simple and explainable   |
+| CSV dataset                  | lightweight storage      |
 
-PostgreSQL + pgvector storage
+---
 
-automated Slack/email alerting
+# Future Improvements
 
-root-cause correlation with releases
+Potential upgrades:
 
-customer impact scoring
+* Sentence-BERT embeddings for semantic clustering
+* WebSocket streaming updates
+* PostgreSQL + pgvector storage
+* automated Slack/email alerts
+* root-cause correlation with releases
+* customer impact scoring
 
-License
+---
 
-MIT License
